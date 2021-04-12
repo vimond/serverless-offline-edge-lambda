@@ -10,13 +10,11 @@
     "build": "tsc",
     "prewatch": "rimraf dist",
     "watch": "tsc -w",
-    "test": "snyk test && echo \"No test specified\"",
+    "test": "echo \"No test specified\"",
     "lint": "tslint --project tsconfig.json",
     "commit": "git-cz",
     "release": "semantic-release --no-ci",
-    "release:dry-run": "semantic-release --no-ci --dry-run",
-    "snyk-protect": "snyk protect",
-    "prepare": "npm run snyk-protect"
+    "release:dry-run": "semantic-release --no-ci --dry-run"
   },
   "config": {
     "commitizen": {
@@ -64,7 +62,7 @@
     "@semantic-release/git": "^7.0.16",
     "@semantic-release/github": "^5.5.0",
     "@semantic-release/release-notes-generator": "^7.3.0",
-    "@types/aws-lambda": "^8.10.51",
+    "@types/aws-lambda": "^8.10.75",
     "@types/body-parser": "^1.19.0",
     "@types/boom": "^7.2.1",
     "@types/connect": "^3.4.32",

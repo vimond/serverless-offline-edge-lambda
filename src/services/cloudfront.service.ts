@@ -1,5 +1,5 @@
 import {
-	CloudFrontRequestEvent, CloudFrontResponseResult, CloudFrontResultResponse, Context
+	CloudFrontRequestEvent, CloudFrontResponseResult, Context
 } from 'aws-lambda';
 
 import { NoResult } from '../errors';
@@ -7,7 +7,7 @@ import { FunctionSet } from '../function-set';
 import { combineResult, isResponseResult, toResultResponse } from '../utils';
 import { CacheService } from './cache.service';
 import { ServerlessInstance, ServerlessOptions } from '../types';
-
+import { parse } from 'url';
 
 export class CloudFrontLifecycle {
 
@@ -44,6 +44,8 @@ export class CloudFrontLifecycle {
 		}
 
 		const result = await this.onOriginRequest();
+
+		delete this.event.Records[0].cf.request.origin;
 
 		await this.fileService.saveToCache(combineResult(this.event, result));
 
@@ -98,6 +100,34 @@ export class CloudFrontLifecycle {
 
 	async onOriginRequest() {
 		this.log('→ origin-request');
+
+		const { request } = this.event.Records[0].cf;
+
+		if (this.fnSet.origin.customOrigin) {
+			const { hostname, port, protocol } = parse(request.uri);
+			const proto = protocol === 'https:' ? 'https' : 'http';
+			const custom = { // TODO: Consider not filling all default options
+				customHeaders: {},
+				domainName: '',
+				keepaliveTimeout: 5,
+				path: '',
+				port: Number(port),
+				protocol: proto as 'http' | 'https',
+				readTimeout: 30,
+				sslProtocols: [
+					'TLSv1',
+					'TLSv1.1',
+					'TLSv1.2'
+				],
+				...this.fnSet.origin.customOrigin,
+			};
+			if (!custom.domainName) {
+				custom.domainName = hostname || '';
+			}
+			request.origin = {
+				custom
+			};
+		}
 
 		const result = await this.fnSet.originRequest(this.event, this.context);
 

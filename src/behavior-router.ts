@@ -25,6 +25,7 @@ interface OriginMapping {
 	pathPattern: string;
 	target: string;
 	default?: boolean;
+	customOriginConfig?: Record<string, any>;
 }
 
 export class BehaviorRouter {
@@ -125,7 +126,12 @@ export class BehaviorRouter {
 						}
 					}
 
-					res.end(response.body);
+					if (typeof response.body === 'string') {
+						res.end(response.body);
+					} else {
+						res.end(response.body, 'binary');
+					}
+
 				} catch (err) {
 					if (isBoom(err)) {
 						this.handleError(err, res);
@@ -163,7 +169,7 @@ export class BehaviorRouter {
 		const mappings: OriginMapping[] = custom.offlineEdgeLambda.originMap || [];
 
 		return mappings.reduce((acc, item) => {
-			acc.set(item.pathPattern, new Origin(item.target));
+			acc.set(item.pathPattern, new Origin(item.target, item.customOriginConfig));
 			return acc;
 		}, new Map<string, Origin>());
 	}
@@ -173,12 +179,15 @@ export class BehaviorRouter {
 
 		const behaviors = this.behaviors;
 		const lambdaDefs = Object.entries(functions)
-			.filter(([, fn]) => 'lambdaAtEdge' in fn);
+			.filter(([, fn]) => 'lambdaAtEdge' in fn || fn.events.some(ev => !!ev.cloudFront));
 
 		behaviors.clear();
 
 		for await (const [, def] of lambdaDefs) {
-			const pattern = def.lambdaAtEdge.pathPattern || '*';
+			const customDef = def.lambdaAtEdge;
+			const nativeDef = (def.events.find(ev => !!ev.cloudFront) || { cloudFront: { pathPattern: '', eventType: '' }}).cloudFront;
+
+			const pattern = (customDef && customDef.pathPattern) || nativeDef.pathPattern || '*';
 
 			if (!behaviors.has(pattern)) {
 				const origin = this.origins.get(pattern);
@@ -187,7 +196,10 @@ export class BehaviorRouter {
 
 			const fnSet = behaviors.get(pattern) as FunctionSet;
 
-			await fnSet.setHandler(def.lambdaAtEdge.eventType, path.join(this.path, def.handler));
+			const eventType = (customDef && customDef.eventType) || nativeDef.eventType;
+			if (eventType) {
+				await fnSet.setHandler(eventType, path.join(this.path, def.handler));
+			}
 		}
 
 		if (!behaviors.has('*')) {

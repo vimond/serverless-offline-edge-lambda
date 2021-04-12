@@ -32,10 +32,20 @@ export interface EdgeLambdaOptions {
 	pathPattern: string;
 }
 
+interface CloudFrontEventOptions {
+	eventType: 'origin-request' | 'origin-response' | 'viewer-request' | 'viewer-response';
+	pathPattern: string;
+}
+
+export interface ServerlessLambdaEvent {
+	cloudFront: CloudFrontEventOptions;
+}
+
 export interface ServerlessFunction {
 	handler: string;
 	package: ServerlessPackage;
-	lambdaAtEdge: EdgeLambdaOptions;
+	lambdaAtEdge?: EdgeLambdaOptions;
+	events: Array<ServerlessLambdaEvent>;
 }
 
 export interface ServerlessPackage {
